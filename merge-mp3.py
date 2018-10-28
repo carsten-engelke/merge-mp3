@@ -1,8 +1,9 @@
 # Merge mp3 files from the current directory or from subfolders (each into one mp3 file)
 # Carsten Engelke 2018 under MIT-license.
 # version:
-#    0.1.0 initial port from windows script, introducing automation
-#    0.2.0 bug corrected foobar needs to be called from working directory as it can't handle empty spaces in file names given by command line
+#    0.1.0  initial port from windows script, introducing automation
+#    0.2.0  bug corrected foobar needs to be called from working directory as the command line plugin cannot handle empty
+#           spaces in file names or paths given by command line
 
 import sys
 import os
@@ -13,9 +14,9 @@ from pynput.keyboard import Key, Controller
 from _thread import start_new_thread
 import time
 
-print ("mergeMP3Subfolder 0.2.0 (C)opyright Carsten Engelke 2018")
-print ("Use: mergeMp3.py [dir] [sub] [foobarpath] [autowaittime]")
-print ("    [dir] determines the directory in which to perform. Use '.' to select the current directory")
+print ("merge-mp3 0.2.0 (C)opyright Carsten Engelke 2018")
+print ("Use: python merge-mp3.py [dir] [sub] [foobarpath] [autowaittime]")
+print ("    [dir] determines the directory in which to perform the script. Use '.' to select the current directory")
 print ("    [sub] determines wheter all mp3 files in subfolders should be merged into one file each. ('true' to do so)")
 print ("    [foobarpath] determines the path to your foobar2000 installation. Please provide in case it differs from 'C:/Program Files (x86)/foobar2000/foobar2000.exe'")
 print ("    [autowaittime] determines whether to automatically clos foobar2000 after some seconds. Use -1 to disable and any number to set the waiting time.")
@@ -96,6 +97,7 @@ def closefoobar(foobarpath, sleeptime, filenumber):
     time.sleep(sleeptime * filenumber)
     subprocess.call(closecmdlist)
 
+#PROGRAM ENTRY POINT
 foobarpath = "C:/Program Files (x86)/foobar2000/foobar2000.exe"
 decisionset = False
 mergesub = True
