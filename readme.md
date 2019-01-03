@@ -4,6 +4,7 @@ Merge mp3 files and set correct audio length using foobar2000 with an automated 
 
 ## Version
 0.1.0 initial release. Port from windows script to python, introducing automation
+0.2.0 bug corrected foobar needs to be called from working directory as the command line plugin cannot handle empty spaces in file names or paths given by command line
 
 ## Requirements
 - Python (script was created using python 3.7.0) (https://www.python.org/)
