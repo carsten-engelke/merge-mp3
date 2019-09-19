@@ -21,8 +21,12 @@ filenum = 15
 suffix = ""
 copy = True
 dir = os.getcwd()
+yes = {'yes','y', 'ja', 'j', ''}
+no = {'no','n', 'nein',}
+askme = True
 if argmax > 1:
     filenum = int(sys.argv[1])
+    askme = False
 if argmax > 2:
     if sys.argv[2] != ".":
         dir = sys.argv[2]
@@ -41,7 +45,11 @@ with os.scandir(dir) as it:
             #print(entry)
 dirnum = math.ceil(len(list) / filenum)
 print("pack-subdirs.py [group-size=" + str(filenum) + "] [dir=" + dir + "] [filter=" + suffix + "] [copy=" + str(copy) +"]")
-
+if (askme):
+    print("Pack files according to above settings into subdirectories [y/n]?")
+    choice = input().lower()
+    if not choice in yes:
+        sys.exit()
 anz = 0
 dirnumactual = 1
 dirname = dir + "/subdir-" + str(dirnumactual)

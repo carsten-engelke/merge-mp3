@@ -4,22 +4,25 @@
 #    0.1.0  initial port from windows script, introducing automation
 #    0.2.0  bug corrected foobar needs to be called from working directory as the command line plugin cannot handle empty
 #           spaces in file names or paths given by command line
+#    0.3.0  bug correction, addition of minimizing file
 
-import sys
-import os
-import subprocess
+import sys, os, subprocess, time, natsort
 from os.path import basename
 
 from pynput.keyboard import Key, Controller
 from _thread import start_new_thread
-import time
 
-print ("merge-mp3 0.2.0 (C)opyright Carsten Engelke 2018")
-print ("Use: python merge-mp3.py [dir] [sub] [foobarpath] [autowaittime]")
-print ("    [dir] determines the directory in which to perform the script. Use '.' to select the current directory")
-print ("    [sub] determines wheter all mp3 files in subfolders should be merged into one file each. ('true' to do so)")
-print ("    [foobarpath] determines the path to your foobar2000 installation. Please provide in case it differs from 'C:/Program Files (x86)/foobar2000/foobar2000.exe'")
-print ("    [autowaittime] determines whether to automatically clos foobar2000 after some seconds. Use -1 to disable and any number to set the waiting time.")
+print("merge-mp3 0.2.0 (C)opyright Carsten Engelke 2018")
+print("Use: python merge-mp3.py [dir] [sub] [foobarpath] [mp3tagpath] [autowaittime]")
+print("    [dir] determines the directory in which to perform the script. Use '.' to select the current directory")
+print("    [sub] determines wheter all mp3 files in subfolders should be merged into one file each. ('true' to do so)")
+print(
+    "    [foobarpath] determines the path to your foobar2000 installation. Please provide in case it differs from 'C:/Program Files (x86)/foobar2000/foobar2000.exe'")
+print(
+    "    [mp3tagpath] determines the path to your mp3tag installation. Please provide in case it differs from 'C:/Program Files (x86)/Mp3tag/Mp3tag.exe'")
+print(
+    "    [autowaittime] determines whether to automatically clos foobar2000 after some seconds. Use -1 to disable and any number to set the waiting time.")
+
 
 def mergesubdirs(dir, foobarpath, autowaittime):
     filelist = []
@@ -30,7 +33,8 @@ def mergesubdirs(dir, foobarpath, autowaittime):
                 if (aimfile != None):
                     filelist.append(aimfile)
     callfoobar(foobarpath, dir, filelist, autowaittime)
-    print ("Merging subdirectories of " + dir + " done.")
+    print("Merging subdirectories of " + dir + " done.")
+
 
 def mergedir(dir, copytoparent):
     if (copytoparent):
@@ -40,7 +44,7 @@ def mergedir(dir, copytoparent):
     mp3number = " ".join(os.listdir(dir)).count(".mp3")
     mp3now = 0
     if (mp3number > 0):
-        print ("mp3 file found. Merging to: " + filestr + "...0%\r", end=" ", flush=True)
+        print("mp3 file found. Merging to: " + filestr + "...0%\r", end=" ", flush=True)
         if (os.path.exists(filestr)):
             os.remove(filestr)
         with open(filestr, "ab") as aimfile:
@@ -50,12 +54,13 @@ def mergedir(dir, copytoparent):
                         mp3now += 1
                         srcfile = open(f, "rb")
                         aimfile.write(srcfile.read())
-                        print ("mp3 file found. Merging to: " + filestr + "..." + str(mp3now*100 // mp3number) + "%\r", end=" ", flush=True)
-            print ("mp3 file found. Merging to: " + filestr + "...done")
+                        # print ("mp3 file found. Merging to: " + filestr + "..." + str(mp3now*100 // mp3number) + "%\r", end=" ", flush=True)
+            # print ("mp3 file found. Merging to: " + filestr + "...done")
             return aimfile
     else:
-        print ("No mp3 in '" + dir.path + "' found.")
+        print("No mp3 in '" + dir.path + "' found.")
         return None
+
 
 def callfoobar(foobarpath, workdir, filelist, autowaittime):
     # if ("".join(filelist).count(" ") > 0):
@@ -72,37 +77,59 @@ def callfoobar(foobarpath, workdir, filelist, autowaittime):
     fixcmdlist = [foobarpath]
     fixcmdlist.append("/runcmd-files=Util/Fix")
     fixcmdlist.extend(filenamelist)
-    print ("CHECKPOINT: Rebuild-CMD:" + str(rebuildcmdlist) + "\n    Fix-CMD:" + str(fixcmdlist))
-    print ("Calling foobar2000 for rebuilding the mp3 stream. Please close the foobar window to continue", end="...", flush=True)
+    minimizecmdlist = [foobarpath]
+    minimizecmdlist.append("/runcmd-files=Utilities/Optimize file layout + minimize file size")
+    minimizecmdlist.extend(filenamelist)
+    # print ("CHECKPOINT: Rebuild-CMD:" + str(rebuildcmdlist) + "\n    Fix-CMD:" + str(fixcmdlist) + "\n    Min-CMD:" + str(minimizecmdlist))
     os.chdir(workdir)
     if (autowaittime >= 0):
-        start_new_thread(closefoobar, (foobarpath, autowaittime, len(filelist)))
-        print ("\rAutomating foobar started. Waiting " + str(autowaittime) + " seconds per file", end="...", flush=True)
+        print("Calling foobar2000 for rebuilding the mp3 stream. Automatically ending in:" + str(
+            autowaittime * len(filenamelist)), end="...", flush=True)
+        start_new_thread(closefoobar, (foobarpath, autowaittime, len(filelist), True))
+    else:
+        print("Calling foobar2000 for rebuilding the mp3 stream. Please close the foobar window to continue", end="...",
+              flush=True)
     subprocess.call(rebuildcmdlist)
-    print ("done")
-    print ("Calling foobar2000 for fixing the mp3 metadata length. Please close the foobar window to continue", end="...", flush=True)
+    print("done")
     if (autowaittime >= 0):
-        start_new_thread(closefoobar, (foobarpath, autowaittime, len(filelist)))
-        print ("\rAutomating foobar started. Waiting " + str(autowaittime) + " seconds per file", end="...", flush=True)
+        print("Calling foobar2000 for fixing the mp3 metadata length. Automatically ending in:" + str(
+            autowaittime * len(filenamelist) / 2), end="...", flush=True)
+        start_new_thread(closefoobar, (foobarpath, autowaittime / 2, len(filelist), True))
+    else:
+        print("Calling foobar2000 for fixing the mp3 metadata length. Please close the foobar window to continue",
+              end="...", flush=True)
     subprocess.call(fixcmdlist)
-    print ("done")
+    print("done")
+    if (autowaittime >= 0):
+        print("Calling foobar2000 for minimizing file. Automatically ending in " + str(
+            autowaittime * len(filenamelist) / 3), end="...", flush=True)
+        start_new_thread(closefoobar, (foobarpath, autowaittime / 3, len(filelist), False))
+    else:
+        print("Calling foobar2000 for minimizing file. Please close the foobar window to continue", end="...",
+              flush=True)
+    subprocess.call(minimizecmdlist)
+    print("done")
     return True;
 
-def closefoobar(foobarpath, sleeptime, filenumber):
+
+def closefoobar(foobarpath, sleeptime, filenumber, press):
     closecmdlist = [foobarpath, "/exit"]
     k = Controller()
-    time.sleep(sleeptime)
-    k.press(Key.enter)
-    k.release(Key.enter)
+    if (press):
+        time.sleep(sleeptime)
+        k.press(Key.enter)
+        k.release(Key.enter)
     time.sleep(sleeptime * filenumber)
     subprocess.call(closecmdlist)
 
-#PROGRAM ENTRY POINT
+
+# PROGRAM ENTRY POINT
 foobarpath = "C:/Program Files (x86)/foobar2000/foobar2000.exe"
+mp3tagpath = "C:/Program Files (x86)/Mp3tag/Mp3tag.exe"
 decisionset = False
 mergesub = True
 dir = os.getcwd()
-autowaittime = 5
+autowaittime = 3
 
 if (len(sys.argv) > 1 and sys.argv[1] != "."):
     if (os.path.isdir(sys.argv[1])):
@@ -110,7 +137,8 @@ if (len(sys.argv) > 1 and sys.argv[1] != "."):
     else:
         i = ""
         while (i != "y" and i != "n" and i != "Y" and i != "N"):
-            i = input ("Specified directory not found: " + sys.argv[1] + " ... will use current directory instead: " + dir + "...OK? (Y)es or (N)o?")
+            i = input("Specified directory not found: " + sys.argv[
+                1] + " ... will use current directory instead: " + dir + "...OK? (Y)es or (N)o?")
             if (i == "n" or i == "N"):
                 sys.exit(0)
 
@@ -124,8 +152,11 @@ if (len(sys.argv) > 2):
 if (len(sys.argv) > 3 and sys.argv[3] != "."):
     foobarpath = sys.argv[3]
 
-if (len(sys.argv) > 4):
-    autowaittime = int(sys.argv[4])
+if (len(sys.argv) > 4 and sys.argv[4] != "."):
+    mp3tagpath = sys.argv[4]
+
+if (len(sys.argv) > 5):
+    autowaittime = int(sys.argv[5])
 
 while (not decisionset):
     i = input("Merge (S)ubfolders or this (D)irectory or (A)bort?")
@@ -135,10 +166,11 @@ while (not decisionset):
     if (i == "D" or i == "d"):
         mergesub = False
         decisionset = True
-    if (i == "A" or i=="a"):
+    if (i == "A" or i == "a"):
         sys.exit(0)
 
-print ("CHECKPOINT: \n    mergesub: " + str(mergesub) + "\n    dir: " + dir + "\n    foobarpath: " + foobarpath + "\n    autowaittime:" + str(autowaittime))
+print("CHECKPOINT: \n    mergesub: " + str(
+    mergesub) + "\n    dir: " + dir + "\n    foobarpath: " + foobarpath + "\n    autowaittime:" + str(autowaittime))
 
 if (mergesub):
     mergesubdirs(dir, foobarpath, autowaittime)
@@ -146,4 +178,4 @@ else:
     aimfile = mergedir(dir, False)
     if (aimfile != None):
         callfoobar(foobarpath, dir, [aimfile], autowaittime)
-    print ("Merging mp3s in " + dir + " done.")
+    print("Merging mp3s in " + dir + " done.")
